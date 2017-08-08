@@ -1,0 +1,1399 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html><head>
+<title>Proposal to Add Decimal Floating Point Support to C++ (revision 2)</title>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta name="keywords" content="decimal, floating, point, C++, proposal, ISO/IEC, JTC1, SC22, WG21, N8371">
+</head>
+<body>
+<h1 id="proposaltoadddecimalfloatingpointsupporttocrevision2">Proposal to Add Decimal Floating Point Support to C++ (revision 2)</h1>
+
+<table>
+<colgroup>
+<col style="text-align:left;">
+<col style="text-align:left;">
+</colgroup>
+
+<thead>
+<tr>
+	<th style="text-align:left;"></th>
+	<th style="text-align:left;" colspan="2"></th>
+	<th style="text-align:left;" colspan="2"></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td style="text-align:left;">Document:</td>
+	<td style="text-align:left;">ISO/IEC JTC1 SC22 WG21 N3871</td>
+</tr>
+<tr>
+	<td style="text-align:left;">Date:</td>
+	<td style="text-align:left;">2014–01–19</td>
+</tr>
+<tr>
+	<td style="text-align:left;">Revises:</td>
+	<td style="text-align:left;">ISO/IEC JTC1 SC22 WG21 N3407=12–0097</td>
+</tr>
+<tr>
+	<td style="text-align:left;">Project:</td>
+	<td style="text-align:left;">Programming Language C++</td>
+</tr>
+<tr>
+	<td style="text-align:left;">Addresses:</td>
+	<td style="text-align:left;">Library and Evolution Working Groups</td>
+</tr>
+<tr>
+	<td style="text-align:left;">Reply To:</td>
+	<td style="text-align:left;"><address>Dietmar Kühl, <a href="mailto:dkuhl@bloomberg.net">dkuhl@bloomberg.net</a></address></td>
+</tr>
+<tr>
+	<td style="text-align:left;"></td>
+	<td style="text-align:left;">Bloomberg L.P.<br>39–45 Finsbury Square <br> London, EC2A 1PQ, United Kingdom</td>
+</tr>
+</tbody>
+</table>
+<p>This document proposes to add decimal floating point support to the C++
+standard. The current version doesn’t spell out the details but instead
+refers to the Decimal TR
+(<a href="http://www.open-std.org/JTC1/SC22/WG21/docs/papers/2009/n2849.pdf">ISO/IEC TR 24733</a>)
+as a basis and describes changes to be applied to this interface to
+bring the proposal up to date with C++ 2011 enhancements.</p>
+
+<h2 id="introduction">Introduction</h2>
+
+<p>C++ provides built-in data types for the processing of numerical
+values: <code>float</code>, <code>double</code>, and <code>long double</code>. The constraints for these
+types imply that a <em>floating point</em> representation is used, i.e., the
+values are represented using a fixed size as
+<em><nobr>(–1)<sup>sign</sup> * significand * base<sup>exponent</sup></nobr></em>.
+The standard doesn’t mandate the base to be used and typically base 2
+is chosen primarily because it yields the fastest computations.</p>
+
+<p>In many areas, especially in finance, exact values need to be processed
+and the inputs are commonly decimal. Unfortunately, decimal values
+cannot, in general, be represented accurately using binary floating
+points even when the decimal values only uses a few digits. Instead,
+the values become an approximation. As long as the values are carefully
+processed the original decimal value can be restored from a binary
+floating point (assuming reasonable restrictions on the number of
+decimal digits). However, computations and certain conversions
+introduce subtle errors (e.g. <code>double</code> to <code>float</code> and back to <code>double</code>,
+even if <code>float</code> is big enough to restore the original decimal value).
+As a result, the processing of exact decimal values using binary
+floating points is very error prone.</p>
+
+<p>The use of decimal floating points avoids many of the problems caused
+by binary floating points. In particular, computations which need to
+accurately process decimal numbers can use decimal floating points.
+Decimal floating points provide a useful and sufficient compromise for
+these domains. Since they use a fixed size representation computations
+which are normally exact can introduce inaccuracies when the number of
+necessary digits becomes too big but for actual applications this is
+rarely a problem. Also, decimal floating points cannot represent the
+result of all operations exactly. For example, the result of a division
+with a prime other than 2 and 5 will, in general, be rounded. In the
+contexts where exact results are needed the corresponding operations
+aren’t needed.</p>
+
+<p>The need for support of exact decimal computations is recognized in
+many communities and supported in several systems, although different
+alternatives for the support are chosen. Below is a list of example
+programming languages with decimal support:</p>
+
+<ol>
+<li>The C committee is working on a Decimal TR as
+<a href="http://www.open-std.org/JTC1/SC22/WG14/www/docs/n1312.pdf">TR 24732</a>.
+The decimal support in C uses built-in types <code>_Decimal32</code>, <code>_Decimal64</code>,
+and <code>_Decimal128</code>.</li>
+<li>Java provides decimal arithmetic by <code>java.math.BigDecimal</code>, an arbitrary
+sized integer with an integer scale for the decimal places.</li>
+<li>Python provides <code>decimal.Decimal</code> which is a fixed point decimal
+representation. The number of decimal digits can be set globally.</li>
+<li>.Net provides <code>System.Decimal</code> which is a 128 bit decimal floating
+point. The details of this represntation are slightly different from
+the 128 bit decimal floating point in IEEE 754–2008. <code>System.Decimal</code>
+is accessible in C# as <code>decimal</code>.</li>
+<li>SQL provides a fixed point decimal representation where the number of
+digits and the number of fractional digits can be chosen for each
+context.</li>
+<li>Ruby provides <code>BigDecimal</code>, an arbitrary sized integer with an integer
+scale for the decimal places.</li>
+</ol>
+
+<p>Since C++ is used in many places where accurate decimal arithmetic is
+required it seems reasonable to add similar support to the standard C++
+library.</p>
+
+<h2 id="proposal">Proposal</h2>
+
+<p>This document proposes to add the interfaces described by the
+<a href="http://www.open-std.org/JTC1/SC22/WG21/docs/papers/2009/n2849.pdf">Decimal TR</a>,
+augmented to take advantage of C++ 2011 features as outlined below,
+as a mandatory part of the next major revision of C++ (currently
+scheduled for 2017).</p>
+
+<p>The
+<a href="http://www.open-std.org/JTC1/SC22/WG21/docs/papers/2009/n2849.pdf">Decimal TR</a>
+was issued in 2009 and, thus, in 2014 a statement needs to be made
+whether it is to be affirmed, revised, or withdrawn. Since the next
+revision of C++ which is open to additinos is scheduled to be
+released in 2017 it is also proposed that the
+<a href="http://www.open-std.org/JTC1/SC22/WG21/docs/papers/2009/n2849.pdf">Decimal TR</a>
+is revised to reflect the changes outlined below for the 2014
+systematic review. Assuming decimal floating point support is added
+to C++ 2017 the technical report can be withdrawn for the 2019
+systematic review.</p>
+
+<h2 id="potentialimplications">Potential Implications</h2>
+
+<p>Adding anything to the standard C++ library isn’t free and any
+component may depend on specific infrastructure to be present to be
+implementable. This section discusses the involved costs and
+requirements.</p>
+
+<h3 id="hardwaresupport">Hardware Support</h3>
+
+<p>The support for decimal floating point numbers described does not
+require specific hardware support. There are several software
+implementations of decimal floating points
+(<a href="http://software.intel.com/en-us/articles/intel-decimal-floating-point-math-library/">Intel</a>,
+<a href="http://speleotrove.com/decimal/decnumber.html">IBM</a>,
+<a href="http://h21007.www2.hp.com/portal/site/dspp/menuitem.863c3e4cbcdc3f3515b49c108973a801?ciid=8cf166fedd1aa110VgnVCM100000a360ea10RCRD">HP</a>)
+with suitable performance. It isn’t expected that decimal floating
+points are used for heavy number crunching because in these contexts
+the corresponding results will not be exact decimal values in the first
+place. Thus, the performance expectations for decimal floating points
+are different than those for floating points used for number crunching.</p>
+
+<p>When processing decimal values using binary floating points it is
+necessary to convert between fractional decimal values to the closest
+fractional binary value. These conversions are relatively expensive and
+are avoided when the processing is done with decimal floating points.
+Since the operations on binary floating points in general yield
+inaccurate decimal values the hardware support for binary floating
+point isn’t of much help when trying to process decimal values. Thus,
+performance comparisons between decimal floating points and binary
+floating points are misguided because they address different problems.</p>
+
+<p>That said, dedicated hardware can improve the performance of operations
+using decimal floating points and the specification is written such
+that potentially available hardware support can be used for an
+implementation. For example, IBM provides a library detecting the
+presence of hardware support and which only uses a software
+implementation for decimal floating points where no hardware support is
+available (see the section on <a href="http://speleotrove.com/decimal/">DFPAL</a>;
+the
+<a href="http://gcc.gnu.org/onlinedocs/gcc/Decimal-Float.html">decimal support in gcc</a>
+is based on
+<a href="http://www.eglibc.org/cgi-bin/viewvc.cgi/libdfp/trunk/README.user?view=co">libdfp</a>
+which also chooses between a hardware and a software implementation
+depending on availability of the hardware but which implements the
+interface of
+<a href="http://www.open-std.org/JTC1/SC22/WG14/www/docs/n1312.pdf">TR 24732</a>).</p>
+
+<h3 id="costofspecification">Cost of Specification</h3>
+
+<p>The operations on decimal floating points are relatively complex. To
+yield predictable results for portable programs it is necessary to
+specify the details of rounding, retained precision, dealing with
+boundary conditions, etc. However, all of these details are already
+addressed by <a href="http://grouper.ieee.org/groups/754/">IEEE 754–2008</a>. The
+specification in the C++ standard will have exactly the same semantics
+by referencing <a href="http://grouper.ieee.org/groups/754/">IEEE 754–2008</a> for
+the semantics. What needs to be specified are the interfaces to access
+the various features of
+<a href="http://grouper.ieee.org/groups/754/">IEEE 754–2008</a> in a natural way
+from C++.</p>
+
+<p>The
+<a href="http://www.open-std.org/JTC1/SC22/WG21/docs/papers/2009/n2849.pdf">Decimal TR</a>
+already spells out most aspects of a C++ binding. With the added
+C++ 2011 features it is possible to create a better user experience.
+There are some design areas open with respect to adding C++ 2011
+support (see the section on Changes to the
+<a href="http://www.open-std.org/JTC1/SC22/WG21/docs/papers/2009/n2849.pdf">Decimal TR</a>
+below). Thus, the overall cost of specification should be acceptable.</p>
+
+<h3 id="costofimplementation">Cost of Implementation</h3>
+
+<p>The implementation of decimal floating point support is certainly
+not trivial. However, it is also not as complex as, e.g., the
+implementation of the
+<a href="http://www.open-std.org/JTC1/SC22/WG21/docs/papers/2009/n2849.pdf">special math functions</a>.
+Several independent implementations are available for different
+platforms, including open source versions. The libraries mentioned
+below are all using a C interface which can be used to implement the
+C++ support.</p>
+
+<ol>
+<li><a href="http://software.intel.com/en-us/articles/intel-decimal-floating-point-math-library/">Intel</a>’s
+library is distributed as source.</li>
+<li><a href="http://speleotrove.com/decimal/decnumber.html">IBM</a>’s implementation
+is distributed as source with multiple open source projects (gcc
+and ICU).</li>
+<li><a href="http://h21007.www2.hp.com/portal/site/dspp/menuitem.863c3e4cbcdc3f3515b49c108973a801?ciid=8cf166fedd1aa110VgnVCM100000a360ea10RCRD">HP</a>
+provides support for decimal floating points with their C and C++
+compilers.</li>
+</ol>
+
+<p>Implementing the interfaces specified by the <a href="http://www.open-std.org/JTC1/SC22/WG21/docs/papers/2009/n2849.pdf">Decimal
+TR</a>
+in terms of the C implementations is relatively straight forward. It
+also seems reasonable that a native C++ implementation can be provided
+with a reasonable amount of work.</p>
+
+<h3 id="costoftesting">Cost of Testing</h3>
+
+<p>IBM provides a set of
+<a href="http://speleotrove.com/decimal/dectest.html">language independent test cases</a>
+for the decimal floating point semantics on the
+<a href="http://speleotrove.com/decimal/">General Decimal Arithmetic</a> page.
+These can be processed by a C++ program to yield a reasonable basis for
+testing. A comprehensive testsuite for the decimal floating point
+semantics is probably more involved but such testsuites can be shared
+with other languages also requiring support for decimal floating point
+support, e.g., C, ECMA Script, etc. Testing the various C++ interfaces,
+i.e., the languge specific parts which can’t be shared, shouldn’t be
+more involved than other C++ libraries.</p>
+
+<h3 id="costofsupport">Cost of Support</h3>
+
+<p>The semantics of decimal floating points is very similar in spirit
+to the semantics of binary floating points. The primary difference
+is that the base is decimal rather than binary. The major difference
+between binary and decimal floating points is that the latter are
+not normalized, i.e., individual decimal values may have multiple
+representations (a group of different representations for the same
+value is refered to as <em>cohort</em> by
+<a href="http://grouper.ieee.org/groups/754/">IEEE 754–2008</a>). The freedom can
+be used to keep track of the precision of values and needs to be
+maintained during rounding. However, the overall complexity of the
+decimal floating point semantics are on a similar level as those of
+binary floating points. They are not dramatically more complex as is
+the case, e.g., with the
+<a href="http://www.open-std.org/JTC1/SC22/WG21/docs/papers/2009/n2849.pdf">special math functions</a>.
+Staff capable of providing support for use of binary floating points
+will be able to also provide support for decimal floating points. To
+some extent, using and providing support for decimal floating points is
+easier than for binary floating points because all issues relating to
+base conversions disappear.</p>
+
+<h2 id="changestothedecimaltr">Changes to the Decimal TR</h2>
+
+<p>The
+<a href="http://www.open-std.org/JTC1/SC22/WG21/docs/papers/2009/n2849.pdf">Decimal TR</a>
+was targetting C++ 2003 and, thus, didn’t use any of the
+new C++ 2011 features. Several of the new features help in creating a
+better user experience and the specification in the
+<a href="http://www.open-std.org/JTC1/SC22/WG21/docs/papers/2009/n2849.pdf">Decimal TR</a>
+needs to be updated to take these into account. This section describes
+the changes proposed to the
+<a href="http://www.open-std.org/JTC1/SC22/WG21/docs/papers/2009/n2849.pdf">Decimal TR</a>.</p>
+
+<h3 id="standardlayouttypes">Standard Layout Types</h3>
+
+<p>C++ 2003 didn’t have any concept of standard-layout types and it was
+impossible to make declared <a href="#defaulteddefaultconstructors">default constructors
+trivial</a> to take advantage of POD
+types. In C++ 2011 the restrictions on types which can be treated
+special are relaxed and <em>standard-layout types</em> are defined which
+support types with private non-static data members. Standard-layout
+types are, e.g., needed when communicating with other language. Thus,
+all decimal types will be required to be standard-layout types.</p>
+
+<h3 id="defaulteddefaultconstructors">Defaulted Default Constructors</h3>
+
+<p>To make a decimal type a POD type it needs to be a standard-layout
+type and a trivial class. Since there are several non-trivial
+constructors in each of the decimal types it is necessary to declare
+the default constructor. To keep the class trivial the default
+constructors need to be defaulted on the first declaration. The
+corresponding declarations will be changed to become</p>
+
+<pre><code>decimal32() = default;
+decimal64() = default;
+decimal128() = default;
+</code></pre>
+
+<p>The
+<a href="http://www.open-std.org/JTC1/SC22/WG21/docs/papers/2009/n2849.pdf">Decimal TR</a>.
+couldn’t make the decimal types trivial because there was no way for
+C++ 2003 to make an user-declared default constructor trivial. Instead,
+the
+<a href="http://www.open-std.org/JTC1/SC22/WG21/docs/papers/2009/n2849.pdf">Decimal TR</a>
+defined the default constructor to initialize the decimal floating
+point with a zero value. For decimal floating points there is a large
+cohort of zero values and whichever zero is chosen is unlikely to be
+the right one in practice. Thus, using an explicitly defaulted default
+constructor is a semantic change possibly resulting in non-initialized
+decimal floating points but the advantages of this change seem to
+outweight the disadvantages.</p>
+
+<h3 id="explicitconversionoperators">Explicit Conversion Operators</h3>
+
+<p>The decimal floating-point types all have a conversion operator to
+<code>long long</code> obtaining the value truncated towards zero. This conversion
+yields an unspecified result when the integral part cannot be
+represented by <code>long long</code> or if the decimal type represents one of the
+special values. Note, that the
+<a href="http://www.open-std.org/JTC1/SC22/WG21/docs/papers/2009/n2849.pdf">Decimal TR</a>
+used the type <code>long long</code> although it was introduced only with C++ 2011.
+This was done to avoid compatibility issues between an implementation based on the TR
+and an implementation augmented to use new C++ 2011 features.</p>
+
+<p>Although the conversion is sometimes useful it shouldn’t be implicit,
+i.e., these conversion operators will be made <code>explicit</code>:</p>
+
+<pre><code>explicit operator long long() const;
+</code></pre>
+
+<p>The behavior of these conversion operators will remain unchanged.
+Making the conversion explicit introduces an inconsistency with the
+existing floating point types <code>float</code>, <code>double</code>, and <code>long double</code>:
+These can be converted implicitly to integer types. Since the implicit
+conversions from floating point types to integers frequently introduce
+surprises it seems to be reasonable to make the conversion explicit for
+newly introduced types.</p>
+
+<p>Section 4.2 (Conversions) of the
+<a href="http://www.open-std.org/JTC1/SC22/WG21/docs/papers/2009/n2849.pdf">Decimal TR</a>
+describes how decimal floating-point types can be converted to basic
+floating types using a cast in C. Since implicit conversion between
+decimal floating-point types and basic floating types can easily
+create problems corresponding conversions are not available in the
+<a href="http://www.open-std.org/JTC1/SC22/WG21/docs/papers/2009/n2849.pdf">Decimal TR</a>.
+With the possibility of disabling implicit conversions corresponding
+explicit conversions should be added:</p>
+
+<pre><code>explicit operator float() const;
+</code></pre>
+
+<p><strong>Returns</strong>: If <code>std::numeric_limits&lt;float&gt;::is_iec559 == true</code>, returns
+the result of the conversion of <code>*this</code> to <code>float</code>, performed as in
+<a href="http://grouper.ieee.org/groups/754/">IEEE 754–2008</a>. Otherwise, the
+returned value is implementation-defined.</p>
+
+<pre><code>explicit operator double() const;
+</code></pre>
+
+<p><strong>Returns</strong>: If <code>std::numeric_limits&lt;double&gt;::is_iec559 == true</code>, returns
+the result of the conversion of <code>*this</code> to <code>double</code>, performed as in <a href="http://grouper.ieee.org/groups/754/">IEEE
+754–2008</a>. Otherwise, the returned
+value is implementation-defined.</p>
+
+<pre><code>explicit operator long double() const;
+</code></pre>
+
+<p><strong>Returns</strong>: If <code>std::numeric_limits&lt;long double&gt;::is_iec559 == true</code>,
+returns the result of the conversion of <code>*this</code> to <code>long double</code>,
+performed as in <a href="http://grouper.ieee.org/groups/754/">IEEE 754–2008</a>.
+Otherwise, the returned value is implementation-defined.</p>
+
+<p>Whether the various <code>decimal*_to_*()</code> conversion functions used by the
+current
+<a href="http://www.open-std.org/JTC1/SC22/WG21/docs/papers/2009/n2849.pdf">Decimal TR</a>
+are retained needs to be decided. In some contexts it may be
+preferrable to use named functions. For example, the conversion
+operators are not necessarily suitable to be used as function objects.
+On the other hand, it is easy to create corresponding function objects
+using the explicit conversions.</p>
+
+<h3 id="makethedecimaltypesfinal">Make the Decimal Types <code>final</code></h3>
+
+<p>Although the decimal floating-point types are described as a library
+feature, some restrictions are imposed on them to allow implementing
+these types as built-in types. In particular, Section 2 (Conventions)
+states that the result of deriving from the decimal floating-point
+types is undefined. Instead of making this behavior undefined, all of
+the decimal floating-point types should be made <code>final</code> to prevent
+deriving:</p>
+
+<pre><code>class decimal32 final { ... };
+class decimal64 final { ... };
+class decimal128 final { ... };
+</code></pre>
+
+<p>Use of other operations capable of detecting if the type is implemented
+as a class or is a built-in type will remain undefined.</p>
+
+<h3 id="exceptionspecifications">Exception Specifications</h3>
+
+<p>Many of the operations on decimal floating-point types have wide
+contracts and, thus, cannot throw any exception. Where appropriate the
+corresponding operations should be declared to be <code>noexcept(true)</code>.</p>
+
+<p>Note that the
+<a href="http://www.open-std.org/JTC1/SC22/WG21/docs/papers/2009/n2849.pdf">Decimal TR</a>
+refers to “raising floating-point exceptions”. This doesn’t
+necessarily throw a C++ exception but may just setup an indication that
+a specific condition occurred. However, an implementation may choose
+to implement a mode of operation where C++ exceptions are thrown as a
+result of raising certain floating-point exceptions. Thus, the use of
+<code>noexcept(true)</code> probably won’t apply to many operations.</p>
+
+<h3 id="constantexpressions">Constant Expressions</h3>
+
+<p>C++ 2011 added the ability to create <code>constexpr</code> functions. It may be
+desirable to turn certain operations into <code>constexpr</code> and it should be
+explicitly permitted to do so. In general, the operations shouldn’t be
+mandated to be <code>constexpr</code> because the semantics of many operations
+depend on run-time setting, e.g., because they use the rounding mode.
+On the other hand, the use of <code>constexpr</code> operations is especially
+desirable, e.g., because constant initialization is preformed prior to
+any dynamic initialization (3.6.2, [basic.start.init], paragraph 2),
+thereby avoiding any issues relating to the order of initialization.</p>
+
+<p>To really support the use of constant expressions for decimal
+floating-point types it is necessary to restrict the semantics of the
+operations. In particular, the operations need to be independent of
+the floating point environment (however, it seems ISO/IEC 60559
+requires a way to specify the rouding mode to be used when computing
+constants). The conditional availability of the floating point
+environment would raise the requirement that functions can be
+overloaded on <code>constexpr</code> arguments, for example (in C++ 2011 it is
+<strong>not</strong> possible to overload these two functions):</p>
+
+<pre><code>constexpr decimal64 operator+ (constexpr decimal64 d1,
+                               constexpr decimal64 d2);
+decimal64           operator+ (decimal64 d1,
+                               decimal64 d2);
+</code></pre>
+
+<p>The first function would be used if the arguments <code>d1</code> and <code>d2</code> are
+constant expressions, otherwise the other function would be used. The
+implementations of the version using constant expressions wouldn’t
+raise any floating point exception and wouldn’t depend on the
+dynamically specified floating point context. The implementations of
+both functions would do similar operations but possibly in vastly
+different ways. For example, the constant expression version would use
+a software implementation while the other version could be implemented
+to take advantage of hardware support for decimal floating points.
+However, corresponding support isn’t available in C++ 2011.</p>
+
+<p>Not having <code>constexpr</code> support yields a viable library. If it is
+controversial to add <code>constexpr</code> it is probably safest to allow the
+use of <code>constexpr</code> but not to mandate it.</p>
+
+<h3 id="literalsuffixes">Literal Suffixes</h3>
+
+<p>Section 4.1 (Literals) of the
+<a href="http://www.open-std.org/JTC1/SC22/WG21/docs/papers/2009/n2849.pdf">Decimal TR</a>
+mentions that C uses literal suffixes for easy creation of decimal
+floating-point types. With the ability to define user-define literals
+a similar mechanism can be provided in C++. That is, the following
+operators should be added:</p>
+
+<pre><code>template &lt;char... C&gt; constexpr decimal32  operator "" DF();
+template &lt;char... C&gt; constexpr decimal64  operator "" DD();
+template &lt;char... C&gt; constexpr decimal128 operator "" DL();
+template &lt;char... C&gt; constexpr decimal32  operator "" df();
+template &lt;char... C&gt; constexpr decimal64  operator "" dd();
+template &lt;char... C&gt; constexpr decimal128 operator "" dl();
+</code></pre>
+
+<p>It may be desirable to mandate that the return types of these operators
+are <code>constexpr</code>. However, the implementations aren’t necessarily trivial.
+If mandated use of <code>constexpr</code> is controversial the support should only
+be allowed and not mandated.</p>
+
+<h3 id="decimalformatting">Decimal Formatting</h3>
+
+<p>Decimal floating points support a feature not available for binary
+floating points: They can represent the precision of the original
+number, i.e., they can keep track of trailing zeros after the decimal
+point (unless the number of digits would exceed the number of decimals
+for the decimalfloating point). To support a choice of formatting the
+number using its own precision the
+<a href="http://www.open-std.org/JTC1/SC22/WG14/www/docs/n1312.pdf">C Decimal TR</a>
+uses the <code>%a</code> and <code>%A</code> format specifiers which use the optionally
+present precision to restrict the formatted to number to a maximum
+number of digits.</p>
+
+<p>Table 88 in 22.4.2.2.2 [facet.num.put.virtuals] paragraph 5 already
+specifies that the format specifiers <code>%a</code> and <code>%A</code> are used for
+floating point conversions when the <code>floatfield</code> is set to
+<code>std::ios_base::fixed | std::ios_base::scientific</code> (this is used to
+format binary floating point numbers using a hexadecimal format). The
+<a href="http://www.open-std.org/JTC1/SC22/WG21/docs/papers/2009/n2849.pdf">Decimal TR</a>
+additionally expands the table for length modifiers to support the
+modifiers <code>H</code>, <code>D</code>, and <code>DD</code> for <code>decimal32</code>, <code>decimal64</code>, and
+<code>decimal128</code>, respectively. Thus, using
+<code>std::ios_base::fixed | std::ios_base::scientific</code> results in
+formatting decimal floating points taking their own precision into
+account when being formatted.</p>
+
+<p>Unfortunately, this paragraph specifies that the precision
+(<code>str.precision()</code>) is only specified for floating point types if
+<code>floatflied != std::ios_base::fixed | std::ios_base::scientific</code>.
+However, it is desirable to optionally impose an upper bound on the
+used precision. One way to address this problem is to change the
+corresponding paragraph to become</p>
+
+<blockquote>
+<p>For conversion from a floating type, if
+<code>floatfield != (ios_base::fixed | ios_base::scientific)</code>
+or if a decimal floating-point type is formatted and
+<code>0 &lt; str.presision()</code>, <code>str.precision()</code> is specified in the
+conversion specification. Otherwise, no precision is specified.</p>
+</blockquote>
+
+<p>With this change the currently set precision would be taken into
+account when formatting decimal floating points. When
+<code>str.precision() == 0</code> and <code>floatfield</code> is set to
+<code>std::ios_base::fixed | std::ios_base::scientific</code> no precision would
+be specified with the <code>%a</code> or <code>%A</code> specifiers when formatting a decimal
+floating point, i.e., its own precision is used. Note, that using a
+non-zero precision with the <code>%a</code> or <code>%A</code> format specifier affects all
+digits, not just the fractional digits (this is consistent with the
+way the <code>%g</code> and <code>%G</code> format specifiers work).</p>
+
+<p>When setting <code>floatfield</code> to
+<code>std::ios_base::fixed | std::ios_base::scientific</code> it would be desirabe
+that the default precision used is the decimal floating point’s own
+precision. This would imply that <code>str.precision() == 0</code> and it seems
+unlikely that the default for <code>str.precision()</code> is changed. An
+alternative approach could be to use a new attribute on
+<code>std::ios_base</code>, e.g., <code>decimal_precision()</code>, which is used with
+formatting of decimal floating points and whose initial value is <code>0</code>.
+To avoid any additional memory overhead this attribute could be
+accessed using the <code>std::ios_base::iword()</code>.</p>
+
+<p>Independent on how the precision is set, it may also be worth to add an
+alias for <code>std::hexfloat</code> which gives the operation a name meaningful
+in the context of decimal floating points. For example,
+<code>std::decimal::ownprecision</code> may be added which also sets the
+<code>floatfield</code> to <code>std::ios_bse::fixed | std::ios_based::scientific</code>.</p>
+
+<h2 id="concretechangestothedecimaltrisoiectr24733n2849">Concrete Changes to the Decimal TR <a href="http://www.open-std.org/JTC1/SC22/WG21/docs/papers/2009/n2849.pdf">ISO/IEC TR24733</a> (N2849)</h2>
+
+<p>This section describes the concrete changes to be made to the Decimal TR to produce the the updated revision of the Decimal TR.</p>
+
+<h3 id="updatereferencessection:">Update References section:</h3>
+
+<p>Update the references section 1.3 to refer to an up to date revision 
+of the International Standard for C++ and remove the reference to the TR
+ on C++ Library Extensions:</p>
+
+<ol>
+<li><p>In the first bullet (reference to the C++ standard), replace</p>
+
+<blockquote>
+<p>ISO/IEC 14882:2003</p>
+</blockquote>
+
+<p>by a reference to the the current revision of the C++ standard</p>
+
+<blockquote>
+<p>ISO/IEC 14883:2011</p>
+</blockquote></li>
+<li><p>Since the additions made by the TR on C++ Library Extensions 
+ISO/IEC TR 19768:2005 are incorporated into the International Standard 
+for C++ remove the second bullet (reference to the library TR):</p>
+
+<blockquote>
+<p><strike>ISO/IEC TR 19768:2005, <em>Information technology — 
+Programming languages, their environments and system software interfaces
+ — Technical Report on C++ Library Extensions.</em></strike></p>
+</blockquote></li>
+<li><p>Add a reference to the C Technical Report on adding decimal floating-point arithmetic ISO/IEC TR 24732, i.e., add another bullet</p>
+
+<blockquote>
+<p>ISO/IEC TR 24732, <em>Information technologoy – Programming 
+languages, their environments and system software interfaces – Extension
+ for the programming language C to support decimal floating-point 
+arithmetic</em></p>
+</blockquote></li>
+</ol>
+
+<h3 id="removetherelationtotr1">Remove the Relation to TR1</h3>
+
+<p>The relevant sections ([tr.meta], [tr.unord.fun.syn], 
+[tr.unord.hash], and [tr.c99]) of the TR on C++ Library Extensions 
+ISO/IEC TR 19768:2005 are incorporated into the International Standard 
+for C++ Section 2.2 can be removed:</p>
+
+<p><strike></strike></p><strike>
+
+</strike><blockquote><strike>
+<p><strong>2.2 Relation to “Technical Report on C++ Library Extensions”</strong></p>
+
+<p>Unless otherwise specified, the following sections of ISO/IEC Technical Report 19768: <em>Technical Report on C++ Library Extensions</em> are included into this Technical Report by reference:</p>
+
+</strike><ul><strike>
+<li>General [tr.intro]</li>
+<li>Metaprogramming and type traits [tr.meta]</li>
+<li>Additions to header <functional> synopsis [tr.unord.fun.syn]</functional></li>
+<li>Class template hash [tr.unord.hash]</li>
+</strike><li><strike>C compatibility [tr.c99]
+</strike></li>
+</ul>
+</blockquote>
+
+<h3 id="removeextensionstotr1headerscategory">Remove Extensions to TR1 Headers Category</h3>
+
+<p>Section 2.3 (Categories of extensions) defines additions to TR1 
+changes as a separate category. Since the TR1 changes are incorporated 
+in to the Internal Standard for C++ these are identical to the one of 
+the other categories (additions to existing standard headers or 
+additions to standard library components). Thus, the third bullet can be
+ removed from the list:</p>
+
+<ol>
+<li><p>Change the first sentence to describe only 3 categories of library extension, i.e., replace</p>
+
+<blockquote>
+<p>This technical report describes 4 categories of library extensions:</p>
+</blockquote>
+
+<p>by</p>
+
+<blockquote>
+<p>This technical report describes 3 categories of library extensions:</p>
+</blockquote></li>
+<li><p>Remove the third bullet of the list in Section 2.3:</p>
+
+<p><strike></strike></p><strike>
+
+</strike><blockquote><strike>
+</strike><p><strike>New library components declared as additions to TR1 headers, such as the template <code>is_decimal_floating_point</code> added to the header <code>&lt;type_traits&gt;</code> in subclause 3.11
+</strike></p>
+</blockquote></li>
+<li><p>Remove the reference to TR1 from the last sentence of the last paragraph, i.e., replace</p>
+
+<blockquote>
+<p>… are not present in the C++ standard or TR1.</p>
+</blockquote>
+
+<p>by</p>
+
+<blockquote>
+<p>… are not present in the C++ standard.</p>
+</blockquote></li>
+</ol>
+
+<h3 id="removethereferencetonamespacestd::tr1">Remove the Reference to Namespace <code>std::tr1</code></h3>
+
+<p>Section 2.4 describes reference to entities in the namespace <code>std::tr1</code> and the assumption that these are qualified by <code>std::tr1</code>. With the entities being incorporated into the Internation Standard for C++ the names are now all in namespace <code>std</code> and the extra qualification can be removed.</p>
+
+<p>Change the second paragraph of 2.4 from</p>
+
+<blockquote>
+<p>Unless otherwise specified, references to other entities described in this technical report are assumed to be qualified with <code>std::decimal::</code>, references to entities described in the C++ standard library are assumed to be qualified with <code>std::</code>, and references to entities described in TR1 are assumed to be qualified with <code>std::tr1::</code>.</p>
+</blockquote>
+
+<p>to become</p>
+
+<blockquote>
+<p>Unless otherwise specified, references to other entities described in this technical report are assumed to be qualified with <code>std::decimal::</code> and references to entities described in the C++ standard library are assumed to be qualified with <code>std::</code>.</p>
+</blockquote>
+
+<h3 id="removeareferencetoachangecategory">Remove a Reference to a Change Category</h3>
+
+<p>Since there are no changes to TR1 one components being made by the 
+update, teh reference to “third” category needs to be removed from the 
+second paragraph in Section 2.4. Change the first sentence of the third 
+paragraph of Section 2.4 from</p>
+
+<blockquote>
+<p>Even when an extension is specified as additions to standard headers 
+(the second and third categories in section 2.3), vendors should not 
+simply add declarations to standard headers in a way that would be 
+visible to users by default</p>
+</blockquote>
+
+<p>to become</p>
+
+<blockquote>
+<p>Even when an extension is specified as additions to standard headers 
+(the second category in section 2.3), vendors should not simply add 
+declarations to standard headers in a way that would be visible to users
+ by default</p>
+</blockquote>
+
+<h3 id="requirethedecimalfloating-fointfypestobestandardlayouttypes">Require the Decimal Floating-Foint Fypes to be Standard Layout Types</h3>
+
+<p>As described above, C++11 generalized to the concept of PODs into the
+ new category of standard layout types. The decimal floating points 
+should be required to be standard layout types. In section 3 add a 
+second paragraph:</p>
+
+<blockquote>
+<p>The decimal floating-point types are implemented as standard-layout types.</p>
+</blockquote>
+
+<h3 id="adddecimalliteralstothesynoposis">Add Decimal Literals to the Synoposis</h3>
+
+<p>In Section 3.2.1 add literal functions to the <code>&lt;decimal&gt;</code> synopsis, i.e., at the end of the header add</p>
+
+<blockquote>
+<pre><code>// 3.2.12 Decimal Literals
+template &lt;char... C&gt;
+ constexpr decimal32 operator  "" DF();
+template &lt;char... C&gt;
+ constexpr decimal64 operator  "" DD();
+template &lt;char... C&gt;
+ constexpr decimal128 operator "" DL();
+template &lt;char... C&gt;
+ constexpr decimal32 operator  "" df();
+template &lt;char... C&gt;
+ constexpr decimal64 operator  "" dd();
+template &lt;char... C&gt;
+ constexpr decimal128 operator "" dl();
+</code></pre>
+</blockquote>
+
+<h3 id="makethedefaultconstructorsdefaulted">Make the Default Constructors Defaulted</h3>
+
+<p>Change the default constructors to be explicitly defaulted:</p>
+
+<ol>
+<li><p>In Section 3.2.2 change the default constructor declaration from</p>
+
+<blockquote>
+<pre><code>decimal32();
+</code></pre>
+</blockquote>
+
+<p>to become</p>
+
+<blockquote>
+<pre><code>decimal32() = default;
+</code></pre>
+</blockquote></li>
+<li><p>In Section 3.2.2.1 change the description of the default contructor from</p>
+
+<blockquote>
+<pre><code>decimal32();
+</code></pre>
+
+<p><em>Effects</em>: Constructs an object of type <code>decimal32</code> with the value equivalent to <code>+0</code> and quantum equal to <code>-101</code>.</p>
+</blockquote>
+
+<p>to become</p>
+
+<blockquote>
+<pre><code>decimal32() = default;
+</code></pre>
+
+<p><em>Effects</em>: When used without any initialization the value of 
+the constructed object is unspecified. When used in form causing zero 
+initializaton constructs an object of type <code>decimal32</code> with the value equivalent to <code>+0</code> and quantum equal to <code>-101</code>.</p>
+</blockquote></li>
+<li><p>In Section 3.2.3 change the default constructor declaration from</p>
+
+<blockquote>
+<pre><code>decimal64();
+</code></pre>
+</blockquote>
+
+<p>to become</p>
+
+<blockquote>
+<pre><code>decimal64() = default;
+</code></pre>
+</blockquote></li>
+<li><p>In Section 3.2.3.1 change the description of the default contructor from</p>
+
+<blockquote>
+<pre><code>decimal64();
+</code></pre>
+
+<p><em>Effects</em>: Constructs an object of type <code>decimal64</code> with the value equivalent to <code>+0</code> and quantum equal to <code>-398</code>.</p>
+</blockquote>
+
+<p>to become</p>
+
+<blockquote>
+<pre><code>decimal64() = default;
+</code></pre>
+
+<p><em>Effects</em>: When used without any initialization the value of 
+the constructed object is unspecified. When used in form causing zero 
+initializaton constructs an object of type <code>decimal64</code> with the value equivalent to <code>+0</code> and quantum equal to <code>-398</code>.</p>
+</blockquote></li>
+<li><p>In Section 3.2.4 change the default constructor declaration from</p>
+
+<blockquote>
+<pre><code>decimal128();
+</code></pre>
+</blockquote>
+
+<p>to become</p>
+
+<blockquote>
+<pre><code>decimal128() = default;
+</code></pre>
+</blockquote></li>
+<li><p>In Section 3.2.4.1 change the description of the default contructor from</p>
+
+<blockquote>
+<pre><code>decimal128();
+</code></pre>
+
+<p><em>Effects</em>: Constructs an object of type <code>decimal128</code> with the value equivalent to <code>+0</code> and quantum equal to <code>-6176</code>.</p>
+</blockquote>
+
+<p>to become</p>
+
+<blockquote>
+<pre><code>decimal128() = default;
+</code></pre>
+
+<p><em>Effects</em>: When used without any initialization the value of 
+the constructed object is unspecified. When used in form causing zero 
+initializaton constructs an object of type <code>decimal128</code> with the value equivalent to <code>+0</code> and quantum equal to <code>-6176</code>.</p>
+</blockquote></li>
+</ol>
+
+<h3 id="explicitconversionoperators">Explicit Conversion Operators</h3>
+
+<p>With the possibility of conversion operators being explicit, the existing conversions (i.e., to <code>long long</code>) should be made explicit and conversions to binary floating point types should be added:</p>
+
+<ol>
+<li><p>In Section 3.2.2 change the declaration of the conversion operator from</p>
+
+<blockquote>
+<p>// conversion to integral types
+ operator long long() const;</p>
+</blockquote>
+
+<p>to become</p>
+
+<blockquote>
+<p>// conversions to built-in types
+ explicit operator long long() const;
+ explicit operator float() const;
+ explicit operator double() const;
+ explicit operator long double() const;</p>
+</blockquote></li>
+<li><p>In Section 3.2.2.4 change the description of the conversion operator from</p>
+
+<blockquote>
+<p><strong>3.2.2.4 Conversion to integral type</strong></p>
+
+<pre><code>operator long long() const;
+</code></pre>
+</blockquote>
+
+<p>to become</p>
+
+<blockquote>
+<p><strong>3.2.2.4 Conversion to built-in types</strong></p>
+
+<pre><code>explict operator long long() const;
+</code></pre>
+</blockquote></li>
+<li><p>In Section 3.2.2.4 add descriptions of the conversion operators to binary floating point types, i.e., add</p>
+
+<blockquote>
+<pre><code>explicit operator float() const;
+</code></pre>
+
+<p><em>Returns</em>: If <code>std::numeric_limits&lt;float&gt;::is_iec559 == true</code>, returns the result of the conversion of <code>*this</code> to <code>float</code>, performed as in IEEE 754–2008. Otherwise, the returned value is implementation-defined.</p>
+
+<pre><code>explicit operator double() const;
+</code></pre>
+
+<p><em>Returns</em>: If <code>std::numeric_limits&lt;double&gt;::is_iec559 == true</code>, returns the result of the conversion of <code>*this</code> to <code>double</code>, performed as in IEEE 754–2008. Otherwise, the returned value is implementation-defined.</p>
+
+<pre><code>explicit operator long double() const;
+</code></pre>
+
+<p><em>Returns</em>: If <code>std::numeric_limits&lt;long double&gt;::is_iec559 == true</code>, returns the result of the conversion of <code>*this</code> to <code>long double</code>, performed as in IEEE 754–2008. Otherwise, the returned value is implementation-defined.</p>
+</blockquote></li>
+<li><p>In Section 3.2.3 change the declaration of the conversion operator from</p>
+
+<blockquote>
+<p>// conversion to integral types
+ operator long long() const;</p>
+</blockquote>
+
+<p>to become</p>
+
+<blockquote>
+<p>// conversions to built-in types
+ explicit operator long long() const;
+ explicit operator float() const;
+ explicit operator double() const;
+ explicit operator long double() const;</p>
+</blockquote></li>
+<li><p>In Section 3.2.3.4 change the description of the conversion operator from</p>
+
+<blockquote>
+<p><strong>3.2.3.4 Conversion to integral type</strong></p>
+
+<pre><code>operator long long() const;
+</code></pre>
+</blockquote>
+
+<p>to become</p>
+
+<blockquote>
+<p><strong>3.2.3.4 Conversions to built-in types</strong></p>
+
+<pre><code>explict operator long long() const;
+</code></pre>
+</blockquote></li>
+<li><p>In Section 3.2.3.4 add descriptions of the conversion operators to binary floating point types, i.e., add</p>
+
+<blockquote>
+<pre><code>explicit operator float() const;
+</code></pre>
+
+<p><em>Returns</em>: If <code>std::numeric_limits&lt;float&gt;::is_iec559 == true</code>, returns the result of the conversion of <code>*this</code> to <code>float</code>, performed as in IEEE 754–2008. Otherwise, the returned value is implementation-defined.</p>
+
+<pre><code>explicit operator double() const;
+</code></pre>
+
+<p><em>Returns</em>: If <code>std::numeric_limits&lt;double&gt;::is_iec559 == true</code>, returns the result of the conversion of <code>*this</code> to <code>double</code>, performed as in IEEE 754–2008. Otherwise, the returned value is implementation-defined.</p>
+
+<pre><code>explicit operator long double() const;
+</code></pre>
+
+<p><em>Returns</em>: If <code>std::numeric_limits&lt;long double&gt;::is_iec559 == true</code>, returns the result of the conversion of <code>*this</code> to <code>long double</code>, performed as in IEEE 754–2008. Otherwise, the returned value is implementation-defined.</p>
+</blockquote></li>
+<li><p>In Section 3.2.4 change the declaration of the conversion operator from</p>
+
+<blockquote>
+<p>// conversion to integral types
+ operator long long() const;</p>
+</blockquote>
+
+<p>to become</p>
+
+<blockquote>
+<p>// conversions to built-in types
+ explicit operator long long() const;
+ explicit operator float() const;
+ explicit operator double() const;
+ explicit operator long double() const;</p>
+</blockquote></li>
+<li><p>In Section 3.2.4.4 change the description of the conversion operator from</p>
+
+<blockquote>
+<p><strong>3.2.4.4 Conversion to integral type</strong></p>
+
+<pre><code>operator long long() const;
+</code></pre>
+</blockquote>
+
+<p>to become</p>
+
+<blockquote>
+<p><strong>3.2.4.4 Conversions to built-in types</strong></p>
+
+<pre><code>explict operator long long() const;
+</code></pre>
+</blockquote></li>
+<li><p>In Section 3.2.3.4 add descriptions of the conversion operators to binary floating point types, i.e., add</p>
+
+<blockquote>
+<pre><code>explicit operator float() const;
+</code></pre>
+
+<p><em>Returns</em>: If <code>std::numeric_limits&lt;float&gt;::is_iec559 == true</code>, returns the result of the conversion of <code>*this</code> to <code>float</code>, performed as in IEEE 754–2008. Otherwise, the returned value is implementation-defined.</p>
+
+<pre><code>explicit operator double() const;
+</code></pre>
+
+<p><em>Returns</em>: If <code>std::numeric_limits&lt;double&gt;::is_iec559 == true</code>, returns the result of the conversion of <code>*this</code> to <code>double</code>, performed as in IEEE 754–2008. Otherwise, the returned value is implementation-defined.</p>
+
+<pre><code>explicit operator long double() const;
+</code></pre>
+
+<p><em>Returns</em>: If <code>std::numeric_limits&lt;long double&gt;::is_iec559 == true</code>, returns the result of the conversion of <code>*this</code> to <code>long double</code>, performed as in IEEE 754–2008. Otherwise, the returned value is implementation-defined.</p>
+</blockquote></li>
+</ol>
+
+<h3 id="makethedecimalfloating-pointtypesfinal">Make the Decimal Floating-Point types <code>final</code></h3>
+
+<p>The floating-point types can’t be inherited from as they may be implemented like built-in types. Making them <code>final</code> prevents that. Thus, the class declarations should be made <code>final</code>:</p>
+
+<ol>
+<li><p>In Section 3.2.2 change the declaration</p>
+
+<blockquote>
+<p>class decimal32 {</p>
+</blockquote>
+
+<p>to become</p>
+
+<blockquote>
+<p>class decimal32 final {</p>
+</blockquote></li>
+<li><p>In Section 3.2.3 change the declaration</p>
+
+<blockquote>
+<p>class decimal64 {</p>
+</blockquote>
+
+<p>to become</p>
+
+<blockquote>
+<p>class decimal64 final {</p>
+</blockquote></li>
+<li><p>In Section 3.2.4 change the declaration</p>
+
+<blockquote>
+<p>class decimal128 {</p>
+</blockquote>
+
+<p>to become</p>
+
+<blockquote>
+<p>class decimal128 final {</p>
+</blockquote></li>
+</ol>
+
+<h3 id="removereferencetocliteralconversion">Remove Reference to C Literal Conversion</h3>
+
+<p>Secton 3.2.5 references Section 4.1 which describes that decimal 
+literals are not supported. Since decimal literal support is being 
+added, i.e., Section 4.1 becomes obsolute and references to it need to 
+be removed. Remove the reference to Section 4.1 from the note at the end
+ of the first paragragraph of 3.2.5:</p>
+
+<p><strike></strike></p><strike>
+
+</strike><blockquote><strike>
+</strike><p><strike>Also, see 4.1
+</strike></p>
+</blockquote>
+
+<h3 id="removereferencetoccasts">Remove Reference to C Casts</h3>
+
+<p>Section 3.2.6 reference Section 4.2 which describes that there is no 
+explicit conversion from decimal floating point types to binary floating
+ points. With the availability of <code>explicit</code> conversion operations these are added, i.e., Section 4.2 becomes obsolute and references to it need to be removed:</p>
+
+<ol>
+<li><p>Remove the reference to Section 4.2 from 3.2.6 paragraph 1:</p>
+
+<p><strike></strike></p><strike>
+
+</strike><blockquote><strike>
+</strike><p><strike>See 4.2
+</strike></p>
+</blockquote></li>
+<li><p>Remove the reference to Section 4.2 from 3.2.6 paragraph 2:</p>
+
+<p><strike></strike></p><strike>
+
+</strike><blockquote><strike>
+</strike><p><strike>See 4.2
+</strike></p>
+</blockquote></li>
+<li><p>Remove the reference to Section 4.2 from 3.2.6 paragraph 3:</p>
+
+<p><strike></strike></p><strike>
+
+</strike><blockquote><strike>
+</strike><p><strike>See 4.2
+</strike></p>
+</blockquote></li>
+</ol>
+
+<h3 id="adddescriptionoftheliteraloperators">Add Description of the Literal Operators</h3>
+
+<p>The added literal operators need a especification. Add a new Section 3.2.12 defining the literal operators:</p>
+
+<blockquote>
+<pre><code>template &lt;char... C&gt;
+ constexpr decimal32 operator  "" DF();
+template &lt;char... C&gt;
+ constexpr decimal64 operator  "" DD();
+template &lt;char... C&gt;
+ constexpr decimal128 operator "" DL();
+template &lt;char... C&gt;
+ constexpr decimal32 operator  "" df();
+template &lt;char... C&gt;
+ constexpr decimal64 operator  "" dd();
+template &lt;char... C&gt;
+ constexpr decimal128 operator "" dl();
+</code></pre>
+
+<p><em>Effects</em>: converts the string value to a decimal floating-point value as if parsing a <code>decimal32</code>, <code>decimal64</code>, or <code>decimal128</code> with <code>scanf()</code> using the conversion specifiers <code>%Hg</code>, <code>%Dg</code>, and <code>%DDg</code>, respectively. An invalid input string results in a compile-time error.</p>
+
+<p><em>Returns</em>: the result of the conversion.</p>
+</blockquote>
+
+<h3 id="updatereferenceforthedescriptionofcfloatandfloat.h">Update Reference for the Description of <code>&lt;cfloat&gt;</code> and <code>&lt;float.h&gt;</code></h3>
+
+<p>The headers <code>&lt;cfloat&gt;</code> and <code>&lt;float.h&gt;</code> are described in [c.limits]: Update the reference in 3.4, i.e., change the first sentence of 3.4 paragraph 1 from</p>
+
+<blockquote>
+<p>The header <code>&lt;cfloat&gt;</code> is described in [tr.c99.cfloat]. The header <code>&lt;float.h&gt;</code> is described in [tr.c99.floath].</p>
+</blockquote>
+
+<p>to become</p>
+
+<blockquote>
+<p>The headers <code>&lt;cfloat&gt;</code> and <code>&lt;float.h&gt;</code> are described in [c.limits].</p>
+</blockquote>
+
+<h3 id="updatereferenceforthedescriptionofcfenvandfenv.h">Update Reference for the Description of <code>&lt;cfenv&gt;</code> and <code>&lt;fenv.h&gt;</code></h3>
+
+<p>The headers <code>&lt;cfenv&gt;</code> and <code>&lt;fenv.h&gt;</code>
+ are part of the International Standard for C++ and the reference to 
+them needs to be updated. Change the first two sentences of 3.5 
+paragraph from </p>
+
+<blockquote>
+<p>The header <code>&lt;cfenv&gt;</code> is described in [tr.c99.cfenv]. The header <code>&lt;fenv.h&gt;</code> is described in [tr.c99.fenv].</p>
+</blockquote>
+
+<p>to become</p>
+
+<blockquote>
+<p>The header <code>&lt;cfenv&gt;</code> is described in [cfenv]. The header <code>&lt;fenv.h&gt;</code> is described in [depr.c.headers].</p>
+
+<p>Remove TR1 Reference from Rounding Modes Table</p>
+</blockquote>
+
+<p>The Table 2 on DFP rounding direction macros references TR1. The 
+corresponding macros are incorporated into the Internation Standard for 
+C++. Change the table header for Table 2 from</p>
+
+<blockquote>
+<p>Equivalent TR1 macro for generic floating types</p>
+</blockquote>
+
+<p>to become</p>
+
+<blockquote>
+<p>Equivalent macro for generic floating types</p>
+</blockquote>
+
+<h3 id="removetr1referenceincmathmath.hspecification">Remove TR1 Reference in <code>&lt;cmath&gt;</code>/<code>&lt;math.h&gt;</code> Specification</h3>
+
+<p>The comparison/classification functions are incorporated into the 
+International Standard for C++ and the TR1 reference needs to be 
+removed.</p>
+
+<ol>
+<li><p>In Section 3.6 change the last sentence in paragraph 3 from </p>
+
+<blockquote>
+<p>The TR1 function templates <code>signbit</code>, <code>fpclassify</code>, <code>isinfinite</code>, <code>isinf</code>, <code>isnan</code>, <code>isnormal</code>, <code>isgreater</code>, <code>isgreaterequal</code>, <code>isless</code>, <code>islessequal</code>, <code>islessgreater</code>, and <code>isunordered</code> are also extended by this Technical Report to handle the decimal floating-point types. </p>
+</blockquote>
+
+<p>to become</p>
+
+<blockquote>
+<p>The comparison and classification function templates <code>signbit</code>, <code>fpclassify</code>, <code>isinfinite</code>, <code>isinf</code>, <code>isnan</code>, <code>isnormal</code>, <code>isgreater</code>, <code>isgreaterequal</code>, <code>isless</code>, <code>islessequal</code>, <code>islessgreater</code>, and <code>isunordered</code> are also extended by this Technical Report to handle the decimal floating-point types. </p>
+</blockquote></li>
+<li><p>In Section 3.6.7 paragraph 1, change the first sentence from</p>
+
+<blockquote>
+<p>For each of the following standard elementary functions from <code>&lt;cmath&gt;</code>, and for each of the following TR1 elementary functions from <code>&lt;cmath&gt;</code>:</p>
+</blockquote>
+
+<p>to become</p>
+
+<blockquote>
+<p>For each of the following standard elementary functions from <code>&lt;cmath&gt;</code>:</p>
+</blockquote></li>
+<li><p>In Section 3.6.7 merge Tables 3 (functions originally from <code>&lt;cmath&gt;</code>) and 4 (functions originally introduced by TR1).</p></li>
+</ol>
+
+<!-- ### Add Declarations and Semantics for the Overloaded Functions
+
+TODO: the Decimal TR didn't mention or specify any of the overloaded functions!
+-->
+
+<h3 id="removetr1referencefortypetraits">Remove TR1 reference for Type Traits</h3>
+
+<p>The type traits mentioned in Section 3.11 are now part the International Standard of C++ and live in namespace <code>std</code> instead of namespace `std::tr1. Update the section to use the correct namespace, i.e. replace </p>
+
+<blockquote>
+<p>The effect of the following type traits, when applied to any of the decimal floating-point types, is implementation- defined:</p>
+
+<ul>
+<li><code>std::tr1::is_arithmetic</code></li>
+<li><code>std::tr1::is_fundamental</code></li>
+<li><code>std::tr1::is_scalar</code></li>
+<li><code>std::tr1::is_class</code></li>
+<li><code>std::tr1::is_pod</code></li>
+</ul>
+
+<p>However, the following expressions shall all yield the same Boolean value, where <em>dec</em> is one of <code>decimal32</code>, <code>decimal64</code>, or <code>decimal128</code>:</p>
+
+<ul>
+<li><code>tr1::is_arithmetic&lt;dec &gt;::value</code></li>
+<li><code>tr1::is_fundamental&lt;dec &gt;::value</code></li>
+<li><code>tr1::is_scalar&lt;dec &gt;::value</code></li>
+<li><code>!tr1::is_class&lt;dec &gt;::value</code></li>
+<li><code>tr1::is_pod&lt;dec &gt;::value</code></li>
+</ul>
+
+<p>[<em>Note</em>: The behavior of the type trait <code>std::tr1::is_floating_point</code> is not altered by this Technical Report. - <em>end note</em>]</p>
+</blockquote>
+
+<p>by</p>
+
+<blockquote>
+<p>The effect of the following type traits, when applied to any of the decimal floating-point types, is implementation- defined:</p>
+
+<ul>
+<li><code>std::is_arithmetic</code></li>
+<li><code>std::is_fundamental</code></li>
+<li><code>std::is_scalar</code></li>
+<li><code>std::is_class</code></li>
+<li><code>std::is_pod</code></li>
+</ul>
+
+<p>However, the following expressions shall all yield the same Boolean value, where <em>dec</em> is one of <code>decimal32</code>, <code>decimal64</code>, or <code>decimal128</code>:</p>
+
+<ul>
+<li><code>std::is_arithmetic&lt;dec &gt;::value</code></li>
+<li><code>std::is_fundamental&lt;dec &gt;::value</code></li>
+<li><code>std::is_scalar&lt;dec &gt;::value</code></li>
+<li><code>!std::is_class&lt;dec &gt;::value</code></li>
+<li><code>std::is_pod&lt;dec &gt;::value</code></li>
+</ul>
+
+<p>[<em>Note</em>: The behavior of the type trait <code>std::is_floating_point</code> is not altered by this Technical Report. - <em>end note</em>]</p>
+</blockquote>
+
+<h3 id="removetr1referencesfromhashfunctions">Remove TR1 References from Hash Functions</h3>
+
+<p>The <code>hash</code> type is now incorporated into the International Standard for C++ and lives in namespace <code>std</code> instead of <code>std::tr1</code>. Update the namespace and the reference to the definition:</p>
+
+<ol>
+<li><p>Change the declaration in 3.12.1 from</p>
+
+<blockquote>
+<pre><code>namespace std {
+namespace tr1 {
+  // 3.12.2 Hash function specializations:
+  template &lt;&gt; struct hash&lt;decimal::decimal32&gt;;
+  template &lt;&gt; struct hash&lt;decimal::decimal64&gt;;
+  template &lt;&gt; struct hash&lt;decimal::decimal128&gt;;
+}}
+</code></pre>
+</blockquote>
+
+<p>to become</p>
+
+<blockquote>
+<pre><code>namespace std {
+  // 3.12.2 Hash function specializations:
+  template &lt;&gt; struct hash&lt;decimal::decimal32&gt;;
+  template &lt;&gt; struct hash&lt;decimal::decimal64&gt;;
+  template &lt;&gt; struct hash&lt;decimal::decimal128&gt;;
+}
+</code></pre>
+</blockquote></li>
+<li><p>In 3.12.2 change the first sentence from</p>
+
+<blockquote>
+<p>In addition to the types indicated in [tr.unord.hash], the class 
+template hash is required to be instantiable on the decimal 
+floating-point types.</p>
+</blockquote>
+
+<p>to become</p>
+
+<blockquote>
+<p>In addition to the types indicated in [unord.hash], the class 
+template hash is required to be instantiable on the decimal 
+floating-point types.</p>
+</blockquote></li>
+</ol>
+
+<h3 id="removethesectiononccompatability">Remove the Section on C Compatability</h3>
+
+<p>There were various incompatibilities to C pointed out in Section 4 
+which were addressed by new features added to C++ with the 2011 
+revision. As a result, the section isn’t needed and can be removed:</p>
+
+<p><strike></strike></p><strike>
+
+</strike><blockquote><strike>
+<p><strong>4 Notes on C compatibility</strong></p>
+
+<p>One of the goals of the design of the decimal floating-point types 
+that are the subject of this Technical Report is to minimize 
+incompatibility with the C decimal floating types; however, differences 
+between the C and C++ languages make some incompatibility inevitable. 
+Differences between the C and C++ decimal types - and techniques for 
+overcoming them - are described in this section.</p>
+
+<p><strong>4.1 Literals</strong></p>
+
+<p>Literals of decimal floating-point type are not introduced to the C++
+ language by this Technical Report, though implementations may support 
+them as a conforming extension. C programs that use decimal floating- 
+point literals will not be portable to a C++ implementation that does 
+not support this extension.</p>
+
+<p><strong>4.2 Conversions</strong></p>
+
+<p>In C, objects of decimal floating-point type can be converted to 
+generic floating-point type by means of an explicit cast. In C++ this is
+ not possible. Instead, the following functions should be used for this 
+purpose:</p>
+
+<ul>
+<li><code>decimal_to_float</code></li>
+<li><code>decimal_to_double</code></li>
+<li><code>decimal_to_long_double</code></li>
+<li><code>decimal32_to_float</code></li>
+<li><code>decimal32_to_double</code></li>
+<li><code>decimal32_to_long_double</code></li>
+<li><code>decimal64_to_float</code></li>
+<li><code>decimal64_to_double</code></li>
+<li><code>decimal64_to_long_double</code></li>
+<li><code>decimal128_to_float</code></li>
+<li><code>decimal128_to_double</code></li>
+<li><code>decimal128_to_long_double</code></li>
+</ul>
+
+</strike><p><strike>C programmers who wish to maintain portability to C++ should use these forms instead of the cast notation.
+</strike></p>
+</blockquote>
+
+<h2 id="revisionhistory">Revision History</h2>
+
+<table>
+<colgroup>
+<col style="text-align:left;">
+<col style="text-align:left;">
+<col style="text-align:left;">
+</colgroup>
+
+<thead>
+<tr>
+	<th style="text-align:left;">Version</th>
+	<th style="text-align:left;">Date</th>
+	<th style="text-align:left;">Changes</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td style="text-align:left;">1</td>
+	<td style="text-align:left;">2012–09–14</td>
+	<td style="text-align:left;">initial version</td>
+</tr>
+<tr>
+	<td style="text-align:left;">2</td>
+	<td style="text-align:left;">2014–01–19</td>
+	<td style="text-align:left;">- updated the dates for expected standard reveisions</td>
+</tr>
+<tr>
+	<td style="text-align:left;"></td>
+	<td style="text-align:left;"></td>
+	<td style="text-align:left;">- added the concrete changes to apply to the decimal TR</td>
+</tr>
+<tr>
+	<td style="text-align:left;"></td>
+	<td style="text-align:left;"></td>
+	<td style="text-align:left;">- some editorial corrections</td>
+</tr>
+</tbody>
+</table>
+
+  
+
+</body></html>

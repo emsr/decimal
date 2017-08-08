@@ -1,0 +1,274 @@
+#ifndef DECIMAL_LIMITS
+#define DECIMAL_LIMITS 1
+
+#include <limits>
+
+namespace std
+{
+
+  /// numeric_limits<decimal::decimal32> specialization.
+  template<>
+    class numeric_limits<decimal::decimal32>
+    {
+    public:
+
+      static constexpr bool is_specialized = true;
+
+      static decimal::decimal32
+      min() noexcept
+      { return DEC32_MIN; }
+
+      static decimal::decimal32
+      max() noexcept
+      { return DEC32_MAX; }
+
+      static decimal::decimal32
+      lowest() noexcept
+      { return -DEC32_MAX; }
+
+      static constexpr int digits = 7;
+
+      static constexpr int digits10 = digits;
+
+      static constexpr int max_digits10 = digits;
+
+      static constexpr bool is_signed = true;
+
+      static constexpr bool is_integer = false;
+
+      static constexpr bool is_exact = false;
+
+      static constexpr int radix = 10;
+
+      static decimal::decimal32
+      epsilon() noexcept
+      { return DEC32_EPSILON; }
+
+      static decimal::decimal32
+      round_error() noexcept;
+
+      static constexpr int min_exponent = -94;
+
+      static constexpr int min_exponent10 = min_exponent;
+
+      static constexpr int max_exponent = 97;
+
+      static constexpr int max_exponent10 = max_exponent;
+
+      static constexpr bool has_infinity = true;
+
+      static constexpr bool has_quiet_NaN = true;
+
+      static constexpr bool has_signaling_NaN = true;
+
+      static constexpr float_denorm_style has_denorm = denorm_present;
+
+      static constexpr bool has_denorm_loss = true;
+
+      static decimal::decimal32
+      infinity() noexcept;
+
+      static decimal::decimal32
+      quiet_NaN() noexcept;
+
+      static decimal::decimal32
+      signaling_NaN() noexcept;
+
+      static decimal::decimal32
+      denorm_min() noexcept
+      { return DEC32_DEN; }
+
+      static constexpr bool is_iec559 = false;
+
+      static constexpr bool is_bounded = true;
+
+      static constexpr bool is_modulo = false;
+
+      static constexpr bool traps = true;
+
+      static constexpr bool tinyness_before = true;
+
+      static constexpr float_round_style round_style = round_indeterminate;
+    };
+
+  /// numeric_limits<decimal::decimal64> specialization.
+  template<> class
+    numeric_limits<decimal::decimal64>
+    {
+    public:
+
+      static constexpr bool is_specialized = true;
+
+      static decimal::decimal64
+      min() noexcept
+      { return DEC64_MIN; }
+
+      static decimal::decimal64
+      max() noexcept
+      { return DEC64_MAX; }
+
+      static decimal::decimal64
+      lowest() noexcept
+      { return -DEC64_MAX; }
+
+      static constexpr int digits = 16;
+
+      static constexpr int digits10 = digits;
+
+      static constexpr int max_digits10 = digits;
+
+      static constexpr bool is_signed = true;
+
+      static constexpr bool is_integer = false;
+
+      static constexpr bool is_exact = false;
+
+      static constexpr int radix = 10;
+
+      static decimal::decimal64
+      epsilon() noexcept
+      { return DEC64_EPSILON; }
+
+      static decimal::decimal64
+      round_error() noexcept
+      { return ...; }
+
+      static constexpr int min_exponent = -382;
+
+      static constexpr int min_exponent10 = min_exponent;
+
+      static constexpr int max_exponent = 385;
+
+      static constexpr int max_exponent10 = max_exponent;
+
+      static constexpr bool has_infinity = true;
+
+      static constexpr bool has_quiet_NaN = true;
+
+      static constexpr bool has_signaling_NaN = true;
+
+      static constexpr float_denorm_style has_denorm = denorm_present;
+
+      static constexpr bool has_denorm_loss = true;
+
+      static decimal::decimal64
+      infinity() noexcept
+      { return ...; }
+
+      static decimal::decimal64
+      quiet_NaN() noexcept
+      { return ...; }
+
+      static decimal::decimal64
+      signaling_NaN() noexcept
+      { return ...; }
+
+      static decimal::decimal64
+      denorm_min() noexcept
+      { return DEC64_DEN; }
+
+      static constexpr bool is_iec559 = false;
+
+      static constexpr bool is_bounded = true;
+
+      static constexpr bool is_modulo = false;
+
+      static constexpr bool traps = true;
+
+      static constexpr bool tinyness_before = true;
+
+      static constexpr float_round_style round_style = round_indeterminate;
+    };
+
+  /// numeric_limits<decimal::decimal128> specialization.
+  template<>
+    class numeric_limits<decimal::decimal128>
+    {
+    public:
+
+      static constexpr bool is_specialized = true;
+
+      static decimal::decimal128
+      min() noexcept
+      { return DEC128_MIN; }
+
+      static decimal::decimal128
+      max() noexcept
+      { return DEC128_MAX; }
+
+      static decimal::decimal128
+      lowest() noexcept
+      { return -DEC128_MAX; }
+
+      static constexpr int digits = 34;
+
+      static constexpr int digits10 = digits;
+
+      static constexpr int max_digits10 = digits;
+
+      static constexpr bool is_signed = true;
+
+      static constexpr bool is_integer = false;
+
+      static constexpr bool is_exact = false;
+
+      static constexpr int radix = 10;
+
+      static decimal::decimal128
+      epsilon() noexcept
+      { return DEC128_EPSILON; }
+
+      static decimal::decimal128
+      round_error() noexcept
+      { return ...; }
+
+      static constexpr int min_exponent = -6142;
+
+      static constexpr int min_exponent10 = min_exponent;
+
+      static constexpr int max_exponent = 6145;
+
+      static constexpr int max_exponent10 = max_exponent;
+
+      static constexpr bool has_infinity = true;
+
+      static constexpr bool has_quiet_NaN = true;
+
+      static constexpr bool has_signaling_NaN = true;
+
+      static constexpr float_denorm_style has_denorm = denorm_present;
+
+      static constexpr bool has_denorm_loss = true;
+
+      static decimal::decimal128
+      infinity()      noexcept
+      { return ...; }
+
+      static decimal::decimal128
+      quiet_NaN()     noexcept
+      { return ...; }
+
+      static decimal::decimal128
+      signaling_NaN() noexcept
+      { return ...; }
+
+      static decimal::decimal128
+      denorm_min()    noexcept
+      { return DEC128_DEN; }
+
+      static constexpr bool is_iec559 = false;
+
+      static constexpr bool is_bounded = true;
+
+      static constexpr bool is_modulo = false;
+
+      static constexpr bool traps = true;
+
+      static constexpr bool tinyness_before = true;
+
+      static constexpr float_round_style round_style = round_indeterminate;
+    };
+
+} // namespace std
+
+#endif // DECIMAL_LIMITS
