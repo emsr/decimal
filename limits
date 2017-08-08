@@ -1,6 +1,9 @@
 #ifndef DECIMAL_LIMITS
 #define DECIMAL_LIMITS 1
 
+#pragma GCC system_header
+
+#include <decimal/decimal>
 #include <limits>
 
 namespace std
@@ -8,10 +11,8 @@ namespace std
 
   /// numeric_limits<decimal::decimal32> specialization.
   template<>
-    class numeric_limits<decimal::decimal32>
+    struct numeric_limits<decimal::decimal32>
     {
-    public:
-
       static constexpr bool is_specialized = true;
 
       static decimal::decimal32
@@ -92,11 +93,9 @@ namespace std
     };
 
   /// numeric_limits<decimal::decimal64> specialization.
-  template<> class
-    numeric_limits<decimal::decimal64>
+  template<>
+    struct numeric_limits<decimal::decimal64>
     {
-    public:
-
       static constexpr bool is_specialized = true;
 
       static decimal::decimal64
@@ -182,10 +181,8 @@ namespace std
 
   /// numeric_limits<decimal::decimal128> specialization.
   template<>
-    class numeric_limits<decimal::decimal128>
+    struct numeric_limits<decimal::decimal128>
     {
-    public:
-
       static constexpr bool is_specialized = true;
 
       static decimal::decimal128
